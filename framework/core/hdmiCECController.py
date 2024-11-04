@@ -37,7 +37,7 @@ MY_PATH = path.realpath(__file__)
 MY_DIR = path.dirname(MY_PATH)
 sys.path.append(path.join(MY_DIR,'../../'))
 from framework.core.logModule import logModule
-from hdmicecModules import CECClientController, MonitoringType
+from framework.core.hdmicecModules import CECClientController, RemoteCECClient, MonitoringType
 
 class HDMICECController():
     """
@@ -58,8 +58,15 @@ class HDMICECController():
         self.cecAdaptor = config.get('adaptor')
         if self.controllerType.lower() == 'cec-client':
             self.controller = CECClientController(self.cecAdaptor, self._log)
+        elif self.controllerType.lower() == 'remote-cec-client':
+            self.controller = RemoteCECClient(self.cecAdaptor,
+                                              self._log,
+                                              address=config.get('address'),
+                                              username=config.get('username',''),
+                                              password=config.get('password',''),
+                                              port=config.get('port',22))
         self._read_line = 0
-        self._monitoringLog = path.join(self._log.logPath, 'cecMonitor.log')
+        self._monitoringLog = path.abspath(path.join(self._log.logPath, 'cecMonitor.log'))
 
     def send_message(self, message: str) -> bool:
         """
@@ -148,11 +155,18 @@ if __name__ == "__main__":
     CONFIGS = [
         {
             'type': 'cec-client',
-            'adaptor': '/dev/ttyACM0'
-            },
+            'adaptor': '/dev/ttyACM0' # This is default for pulse 8
+        },
+        {
+            'type': 'remote-cec-client',
+            'adaptor': '/dev/cec0', # This is default for Raspberry Pi
+            'address': '', # Needs to be be filled out with IP address
+            'username': '', # Needs to be filled out with login username
+            'password': '' # Needs to be filled out with login password
+        }
     ]
     for config in CONFIGS:
-        LOG.setFilename('./logs/','CECTEST%s.log' % config.get('type'))
+        LOG.setFilename(path.abspath('./logs/'),'CECTEST%s.log' % config.get('type'))
         LOG.stepStart('Testing with %s' % json.dumps(config))
         CEC = HDMICECController(LOG, config)
         DEVICES = CEC.listDevices()
